@@ -1,0 +1,15 @@
+﻿{
+  "appName": "DSH-MOBILE",
+  "version": 1,
+  "dataDir": "data",
+  "port": 49760,
+  "shell": "electron",
+  "telemetryDisabled": true,
+  "keepEngineOnShellExit": true,
+  "notes": [
+    "dataDir is relative to the DSH-MOBILE root; an absolute path is also accepted.",
+    "All DSH-MOBILE state lives under dataDir: home, agents, electron, appdata, localappdata, temp, logs, workspace.",
+    "The official DSH defaults (~/.dsh, ~/.agents, %APPDATA%\\@deepseek-ai\\dsh-desktop) are never used."
+  ]
+}
+

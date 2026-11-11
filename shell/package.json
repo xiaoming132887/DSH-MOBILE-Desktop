@@ -1,0 +1,9 @@
+{
+  "name": "dsh-mobile",
+  "productName": "DSH-MOBILE",
+  "version": "1.0.0",
+  "description": "DSH-MOBILE — an isolated third-party DeepSeek Harness client",
+  "main": "main.js",
+  "private": true,
+  "license": "MIT"
+}

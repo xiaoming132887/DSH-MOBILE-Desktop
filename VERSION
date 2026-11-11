@@ -1,0 +1,10 @@
+DSH-MOBILE 1.3.0
+Engine: @deepseek-ai/dsh 0.2.2-rc.1
+Runtime: Node.js 24.21.0 (win32-x64); cloudflared 2026.10.7
+Shell: Electron (bundled)
+Features: fully isolated data roots; in-app remote panel with two modes:
+          - LAN (6-digit password, local IPv4 addresses)
+          - Public (bundled cloudflared, trycloudflare HTTPS URL, 32-char password)
+          Android remote WebUI (phone 3090); sessions sync protocol v1.
+Built: 2026-11-11
+License: MIT (this launcher/shell); official dsh packages and cloudflared keep their own licenses.

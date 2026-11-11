@@ -1,0 +1,10 @@
+# Runtime binaries are not committed.
+# Put your own copies here; see BUILD.md.
+runtime/
+data/
+*.log
+*.tmp
+_smoke*/
+_shelltest*/
+_synctest*/
+_edgetest/

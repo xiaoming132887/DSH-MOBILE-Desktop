@@ -13,6 +13,8 @@ DSH-MOBILE\
   runtime\
     node.exe
     cloudflared.exe
+    pnpm\                 (optional, plugin install)
+    git\                  (optional, GitHub / git plugin sources)
     engine\
       node_modules\@deepseek-ai\dsh\lib\bin.js
     electron\
@@ -53,6 +55,32 @@ Invoke-WebRequest `
   -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" `
   -OutFile ".\runtime\cloudflared.exe"
 ```
+
+## Plugin toolchain: pnpm + git (required for plugin install)
+
+The plugin manager shells out to `pnpm` (every source) and `git` (git / GitHub
+sources) with **all `DSH_*` variables stripped**, so both must resolve from
+`PATH`. The official desktop leaves a `pnpm.cmd` shim in
+`%LOCALAPPDATA%\deepseek-harness\bin` that points at a runtime you deleted —
+without the bundled copies you get `[pnpm] Node.js runtime not found`.
+
+Both scripts are idempotent and download from npmmirror first (GitHub Releases
+as fallback):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\provision-pnpm.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\provision-git.ps1
+```
+
+- `provision-pnpm.ps1` → `runtime\pnpm\` + `runtime\pnpm.cmd` (version taken from
+  `runtime\engine\desktop-runtime.json` `release.pnpmVersion`)
+- `provision-git.ps1` → `runtime\git\` (MinGit, no registry, no installer) +
+  `runtime\git.cmd`
+
+Each script re-runs its own verification with `DSH_*` stripped: `where pnpm`,
+`where git`, `git ls-remote` to GitHub, and a real shallow clone. See
+[docs/PLUGINS.md](docs/PLUGINS.md) for supported spec formats and limits
+(HTTPS only, private repos need an inline token, `pendingBuilds` approval).
 
 ## Run
 

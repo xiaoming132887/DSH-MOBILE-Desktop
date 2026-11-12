@@ -6,6 +6,7 @@
 
 > 这是**电脑端（Windows）源码仓库**；`runtime/` 下的 Node / Electron / dsh 引擎 /
 > cloudflared 二进制不随仓库提交，首次运行前请按 [BUILD.md](BUILD.md) 准备。
+> 插件安装依赖内置 pnpm / git，见 [docs/PLUGINS.md](docs/PLUGINS.md)。
 > Android 端补丁见 [docs/ANDROID.md](docs/ANDROID.md)。
 
 ```
@@ -27,9 +28,12 @@ DSH-MOBILE\
 ├─ runtime\
 │  ├─ node.exe             ← 官方运行时 Node 24.21.0
 │  ├─ engine\              ← 官方 dsh 0.2.2-rc.1 引擎（独立副本）
-│  └─ electron\            ← Electron 外壳运行时
+│  ├─ electron\            ← Electron 外壳运行时
+│  ├─ pnpm\                ← 内置 pnpm（插件安装用，provision-pnpm.ps1 生成）
+│  └─ git\                 ← 内置 MinGit（GitHub / git 来源插件用，provision-git.ps1 生成）
 ├─ shell\                  ← DSH-MOBILE 窗口外壳（标题固定为 DSH-MOBILE）
-└─ scripts\                ← start / stop / status / doctor / shortcut / uninstall
+├─ docs\                   ← ANDROID.md / PLUGINS.md
+└─ scripts\                ← start / stop / status / doctor / provision / shortcut / uninstall
 ```
 
 ## 1. 与官方 DSH 的隔离关系
@@ -148,7 +152,41 @@ DSH-MOBILE 不包含官方桌面版的自动更新器，升级由你自己控制
 - Android 安装 `android\patch` 后：**设置 → 双端互联** 可直接连接电脑、
   双向/单向同步会话，并查看本机 LAN WebUI 地址与密码。
 
-## 8. 目录速查
+## 8. 插件安装（npm / GitHub）
+
+插件由引擎自带的 `dsh-plugin-manager` 安装，底层是 **pnpm**；git 来源还需要 **git**。
+DSH-MOBILE 的 `runtime\` 里只有 node，所以这两样要单独供应（官方桌面版残留的
+`pnpm.cmd` 会指向已删除的运行时，导致 `[pnpm] Node.js runtime not found`）。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\provision-pnpm.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\provision-git.ps1
+```
+
+| 脚本 | 装什么 | 结果 |
+|---|---|---|
+| `provision-pnpm.ps1` | pnpm 11.28.5（跟随 `runtime\engine\desktop-runtime.json`） | `runtime\pnpm\` + `pnpm.cmd` shim |
+| `provision-git.ps1` | MinGit 2.56.1（免安装、不写注册表） | `runtime\git\` + `git.cmd` shim |
+
+两个脚本都幂等，重新解压便携包后重跑一次即可恢复；shim 只依赖 `%~dp0`，不引用
+`DSH_*` 变量——插件管理器启动子进程时会剥掉所有 `DSH_*`，这点很关键。
+
+支持的来源与写法：
+
+| 来源 | 写法 |
+|---|---|
+| npm registry | `dsh-pet-custom-balance`、`@scope/plugin@1.2.3` |
+| GitHub | `https://github.com/owner/repo`，或简写 `owner/repo` |
+| 任意 git | `git+https://example.com/owner/repo.git#main` |
+| 本地 | `file:../my-plugin`、`./plugin-1.0.0.tgz` |
+
+限制：只支持 HTTPS（MinGit 不带 OpenSSH）；私有仓库把 token 写进地址
+（`https://<token>@github.com/owner/repo`）；仓库带 `prepare` / `postinstall`
+时会被 pnpm 11 拦下并返回 `pendingBuilds`，在界面点「允许这些脚本并重试」即可。
+
+细节、失败日志位置与排障命令见 **[docs/PLUGINS.md](docs/PLUGINS.md)**。
+
+## 9. 目录速查
 
 | 想看什么 | 去哪里 |
 |---|---|

@@ -23,15 +23,6 @@ $mobile = [ordered]@{
   Workspace    = Join-Path $Data 'workspace'
 }
 
-$officialHome = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $HOME '.dsh' }
-$officialAgents = if ($env:DSH_AGENTS_HOME) { $env:DSH_AGENTS_HOME } else { Join-Path $HOME '.agents' }
-$officialElectron = Join-Path $env:APPDATA '@deepseek-ai\dsh-desktop'
-$official = [ordered]@{
-  DSH_HOME     = $officialHome
-  DSH_AGENTS   = $officialAgents
-  ElectronData = $officialElectron
-}
-
 function Get-Full([string]$Path) {
   try { [IO.Path]::GetFullPath($Path).TrimEnd('\', '/') } catch { $Path }
 }
@@ -41,6 +32,38 @@ function Test-Overlap([string]$A, [string]$B) {
   if ($a -eq $b) { return $true }
   return $a.StartsWith($b + '\', [StringComparison]::OrdinalIgnoreCase) -or
          $b.StartsWith($a + '\', [StringComparison]::OrdinalIgnoreCase)
+}
+function Test-Inside([string]$Child, [string]$Parent) {
+  if (-not $Child -or -not $Parent) { return $false }
+  $c = Get-Full $Child
+  $p = Get-Full $Parent
+  return ($c -eq $p) -or $c.StartsWith($p + '\', [StringComparison]::OrdinalIgnoreCase)
+}
+
+# Official defaults. When this script runs *inside* DSH-MOBILE (agents do that a
+# lot) the engine's own DSH_HOME / DSH_AGENTS_HOME / APPDATA already point into
+# DSH-MOBILE, so they must not be mistaken for the official paths — otherwise
+# every run false-fails as "overlaps official path: <itself>".
+$userRoaming = if ($env:APPDATA -and -not (Test-Inside $env:APPDATA $Root)) {
+  $env:APPDATA
+} else {
+  Join-Path $env:USERPROFILE 'AppData\Roaming'
+}
+$officialHome = if ($env:DSH_HOME -and -not (Test-Inside $env:DSH_HOME $Root)) {
+  $env:DSH_HOME
+} else {
+  Join-Path $HOME '.dsh'
+}
+$officialAgents = if ($env:DSH_AGENTS_HOME -and -not (Test-Inside $env:DSH_AGENTS_HOME $Root)) {
+  $env:DSH_AGENTS_HOME
+} else {
+  Join-Path $HOME '.agents'
+}
+$officialElectron = Join-Path $userRoaming '@deepseek-ai\dsh-desktop'
+$official = [ordered]@{
+  DSH_HOME     = $officialHome
+  DSH_AGENTS   = $officialAgents
+  ElectronData = $officialElectron
 }
 
 $problems = New-Object System.Collections.Generic.List[string]
@@ -75,6 +98,32 @@ Write-Output ("Engine: " + ($(if ($version) { "dsh $version" } else { 'NOT RUNNA
 Write-Output ("Root:   " + $Root)
 Write-Output ("Data:   " + $Data)
 Write-Output ''
+
+# ---------------------------------------------------------- plugin toolchain
+# The plugin manager strips every DSH_* variable before spawning pnpm / git, so
+# these two have to be resolvable from PATH on their own. Missing ones are not
+# an isolation failure, only a "plugin install will not work" hint.
+$runtimeDir = Join-Path $Root 'runtime'
+$pnpmCjs = Join-Path $runtimeDir 'pnpm\bin\pnpm.cjs'
+$gitExe = Join-Path $runtimeDir 'git\cmd\git.exe'
+$pnpmVersion = $null
+$gitVersion = $null
+if ((Test-Path -LiteralPath $pnpmCjs) -and (Test-Path -LiteralPath $node)) {
+  try { $pnpmVersion = (& $node $pnpmCjs --version 2>$null | Select-Object -First 1) } catch { }
+}
+if (Test-Path -LiteralPath $gitExe) {
+  try { $gitVersion = (& $gitExe --version 2>$null | Select-Object -First 1) -replace '^git version\s+', '' } catch { }
+}
+
+Write-Output 'Plugin toolchain'
+Write-Output ('-' * 78)
+Write-Output ("pnpm: " + ($(if ($pnpmVersion) { "$pnpmVersion  ($pnpmCjs)" } else { 'MISSING  -> .\scripts\provision-pnpm.ps1' })))
+Write-Output ("git:  " + ($(if ($gitVersion) { "$gitVersion  ($gitExe)" } else { 'MISSING  -> .\scripts\provision-git.ps1' })))
+if (-not $pnpmVersion -or -not $gitVersion) {
+  Write-Output 'Note: plugin install needs both; npm-only sources still work without git.'
+}
+Write-Output ''
+
 if ($problems.Count -eq 0) {
   Write-Output 'RESULT: PASS - DSH-MOBILE data roots are disjoint from official DSH defaults.'
   exit 0
